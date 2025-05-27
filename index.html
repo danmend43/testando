@@ -2,98 +2,114 @@
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8" />
-<title>Borda Pulsante com Spotify BPM</title>
+<title>Spotify BPM Visualizer</title>
 <style>
+  body {
+    font-family: Arial, sans-serif;
+    background: #121212;
+    color: white;
+    text-align: center;
+    padding-top: 50px;
+  }
+  #login {
+    padding: 15px 40px;
+    font-size: 1.3em;
+    background-color: #1DB954;
+    color: white;
+    border: none;
+    border-radius: 30px;
+    cursor: pointer;
+    transition: background-color 0.3s;
+  }
+  #login:hover {
+    background-color: #1ed760cc;
+  }
   #cover {
+    margin-top: 40px;
     width: 300px;
     height: 300px;
     border: 8px solid #1DB954;
-    border-radius: 20px;
+    border-radius: 50%; /* redondo */
+    box-sizing: border-box;
     transition: box-shadow 0.15s ease;
-    margin: 50px auto;
-    display: block;
+    display: none;
+    cursor: pointer;
   }
 </style>
-</head> l
+</head>
 <body>
 
+<button id="login">Logar com Spotify</button>
 <img id="cover" alt="Capa da Música" />
 
 <script>
-  // Seu token OAuth válido (Bearer)
-  const accessToken = '3d496cf3ccfc422b8c0bab8cd5f963aa';
+  const client_id = '3d496cf3ccfc422b8c0bab8cd5f963aa'; // substitua pelo seu Client ID Spotify
+  const redirect_uri = 'https://testando-pp9x.vercel.app/callback'; // ajuste pra sua URL
+  const scopes = 'user-read-currently-playing user-read-playback-state';
 
-  // Id da música para exemplo (pode mudar dinâmico)
-  let currentTrackId = null;
+  const loginBtn = document.getElementById('login');
+  const cover = document.getElementById('cover');
 
-  async function fetchCurrentTrack() {
+  function login() {
+    const authEndpoint = 'https://accounts.spotify.com/authorize';
+    const url = `${authEndpoint}?client_id=${client_id}&redirect_uri=${encodeURIComponent(redirect_uri)}&scope=${encodeURIComponent(scopes)}&response_type=token&show_dialog=true`;
+    window.location = url;
+  }
+
+  loginBtn.addEventListener('click', login);
+
+  function getTokenFromUrl() {
+    const hash = window.location.hash.substring(1);
+    const params = new URLSearchParams(hash);
+    return params.get('access_token');
+  }
+
+  async function fetchCurrentTrack(token) {
     try {
-      // Pega música atual do usuário
       const res = await fetch('https://api.spotify.com/v1/me/player/currently-playing', {
-        headers: {
-          Authorization: `Bearer ${accessToken}`
-        }
+        headers: { Authorization: 'Bearer ' + token }
       });
-
-      if (res.status === 204 || res.status > 400) {
-        console.log('Nenhuma música tocando ou erro na requisição');
-        return null;
-      }
-
+      if (res.status === 204 || res.status > 400) return null;
       const data = await res.json();
-
       if (!data || !data.item) return null;
-
       return data.item;
-    } catch (error) {
-      console.error('Erro ao buscar música atual', error);
+    } catch {
       return null;
     }
   }
 
-  async function fetchAudioFeatures(trackId) {
-    try {
-      const res = await fetch(`https://api.spotify.com/v1/audio-features/${trackId}`, {
-        headers: {
-          Authorization: `Bearer ${accessToken}`
-        }
-      });
-      const data = await res.json();
-      return data;
-    } catch (error) {
-      console.error('Erro ao buscar audio features', error);
-      return null;
-    }
+  async function fetchAudioFeatures(token, trackId) {
+    const res = await fetch(`https://api.spotify.com/v1/audio-features/${trackId}`, {
+      headers: { Authorization: 'Bearer ' + token }
+    });
+    if (!res.ok) return null;
+    return await res.json();
   }
 
-  async function startVisualizer() {
-    const cover = document.getElementById('cover');
+  function startVisualizer(token) {
+    loginBtn.style.display = 'none';
+    cover.style.display = 'block';
+
+    let currentTrackId = null;
+    let pulseInterval;
 
     async function update() {
-      const track = await fetchCurrentTrack();
-
+      const track = await fetchCurrentTrack(token);
       if (!track) {
         cover.src = '';
         cover.style.boxShadow = 'none';
         return;
       }
-
       if (track.id !== currentTrackId) {
         currentTrackId = track.id;
         cover.src = track.album.images[0].url;
       }
-
-      const features = await fetchAudioFeatures(currentTrackId);
-
-      if (!features || !features.tempo) {
-        console.log('Tempo não disponível');
-        return;
-      }
+      const features = await fetchAudioFeatures(token, currentTrackId);
+      if (!features || !features.tempo) return;
 
       const bpm = features.tempo;
       const interval = 60000 / bpm;
 
-      // Pulsar a borda baseado no BPM
       function pulse() {
         cover.style.boxShadow = '0 0 40px 15px #1DB954';
         setTimeout(() => {
@@ -102,18 +118,31 @@
       }
 
       pulse();
-
-      // Recria o setInterval a cada vez para ajustar ao BPM atualizado
-      clearInterval(window.pulseInterval);
-      window.pulseInterval = setInterval(pulse, interval);
+      clearInterval(pulseInterval);
+      pulseInterval = setInterval(pulse, interval);
     }
 
-    // Atualiza a cada 10s (você pode ajustar)
     update();
     setInterval(update, 10000);
+
+    // Se quiser, pode dar reload se clicar na capa pra atualizar manualmente
+    cover.addEventListener('click', update);
   }
 
-  startVisualizer();
+  (function init() {
+    const tokenFromUrl = getTokenFromUrl();
+    if (tokenFromUrl) {
+      localStorage.setItem('spotify_token', tokenFromUrl);
+      window.history.replaceState({}, document.title, '/'); // limpa o token da URL
+    }
+    const token = localStorage.getItem('spotify_token');
+    if (token) {
+      startVisualizer(token);
+    } else {
+      loginBtn.style.display = 'inline-block';
+      cover.style.display = 'none';
+    }
+  })();
 </script>
 
 </body>
