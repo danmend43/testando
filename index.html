@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<title>Borda Pulsante com Spotify BPM</title>
+<style>
+  #cover {
+    width: 300px;
+    height: 300px;
+    border: 8px solid #1DB954;
+    border-radius: 20px;
+    transition: box-shadow 0.15s ease;
+    margin: 50px auto;
+    display: block;
+  }
+</style>
+</head> l
+<body>
+
+<img id="cover" alt="Capa da Música" />
+
+<script>
+  // Seu token OAuth válido (Bearer)
+  const accessToken = '3d496cf3ccfc422b8c0bab8cd5f963aa';
+
+  // Id da música para exemplo (pode mudar dinâmico)
+  let currentTrackId = null;
+
+  async function fetchCurrentTrack() {
+    try {
+      // Pega música atual do usuário
+      const res = await fetch('https://api.spotify.com/v1/me/player/currently-playing', {
+        headers: {
+          Authorization: `Bearer ${accessToken}`
+        }
+      });
+
+      if (res.status === 204 || res.status > 400) {
+        console.log('Nenhuma música tocando ou erro na requisição');
+        return null;
+      }
+
+      const data = await res.json();
+
+      if (!data || !data.item) return null;
+
+      return data.item;
+    } catch (error) {
+      console.error('Erro ao buscar música atual', error);
+      return null;
+    }
+  }
+
+  async function fetchAudioFeatures(trackId) {
+    try {
+      const res = await fetch(`https://api.spotify.com/v1/audio-features/${trackId}`, {
+        headers: {
+          Authorization: `Bearer ${accessToken}`
+        }
+      });
+      const data = await res.json();
+      return data;
+    } catch (error) {
+      console.error('Erro ao buscar audio features', error);
+      return null;
+    }
+  }
+
+  async function startVisualizer() {
+    const cover = document.getElementById('cover');
+
+    async function update() {
+      const track = await fetchCurrentTrack();
+
+      if (!track) {
+        cover.src = '';
+        cover.style.boxShadow = 'none';
+        return;
+      }
+
+      if (track.id !== currentTrackId) {
+        currentTrackId = track.id;
+        cover.src = track.album.images[0].url;
+      }
+
+      const features = await fetchAudioFeatures(currentTrackId);
+
+      if (!features || !features.tempo) {
+        console.log('Tempo não disponível');
+        return;
+      }
+
+      const bpm = features.tempo;
+      const interval = 60000 / bpm;
+
+      // Pulsar a borda baseado no BPM
+      function pulse() {
+        cover.style.boxShadow = '0 0 40px 15px #1DB954';
+        setTimeout(() => {
+          cover.style.boxShadow = 'none';
+        }, interval / 2);
+      }
+
+      pulse();
+
+      // Recria o setInterval a cada vez para ajustar ao BPM atualizado
+      clearInterval(window.pulseInterval);
+      window.pulseInterval = setInterval(pulse, interval);
+    }
+
+    // Atualiza a cada 10s (você pode ajustar)
+    update();
+    setInterval(update, 10000);
+  }
+
+  startVisualizer();
+</script>
+
+</body>
+</html>
