@@ -43,25 +43,25 @@
 <img id="cover" alt="Capa da Música" />
 
 <script>
-  const client_id = '384115184ce848c1bf39bdd8d0209f83'; // substitua pelo seu Client ID Spotify
-  const redirect_uri = 'https://testando-pp9x.vercel.app/callback'; // ajuste pra sua URL
-  const scopes = 'user-read-currently-playing user-read-playback-state';
+  // Ajuste para chamar a rota serverless no Vercel para iniciar o login
+  const backendLoginUrl = '/api/login';
 
   const loginBtn = document.getElementById('login');
   const cover = document.getElementById('cover');
 
-  function login() {
-    const authEndpoint = 'https://accounts.spotify.com/authorize';
-    const url = `${authEndpoint}?client_id=${client_id}&redirect_uri=${encodeURIComponent(redirect_uri)}&scope=${encodeURIComponent(scopes)}&response_type=token&show_dialog=true`;
-    window.location = url;
-  }
+  // Abre backend para iniciar login
+  loginBtn.addEventListener('click', () => {
+    window.location = backendLoginUrl;
+  });
 
-  loginBtn.addEventListener('click', login);
-
-  function getTokenFromUrl() {
-    const hash = window.location.hash.substring(1);
-    const params = new URLSearchParams(hash);
-    return params.get('access_token');
+  // Pega tokens da query string da URL
+  function getTokensFromUrl() {
+    const params = new URLSearchParams(window.location.search);
+    return {
+      access_token: params.get('access_token'),
+      refresh_token: params.get('refresh_token'),
+      expires_in: params.get('expires_in')
+    };
   }
 
   async function fetchCurrentTrack(token) {
@@ -125,15 +125,15 @@
     update();
     setInterval(update, 10000);
 
-    // Se quiser, pode dar reload se clicar na capa pra atualizar manualmente
     cover.addEventListener('click', update);
   }
 
   (function init() {
-    const tokenFromUrl = getTokenFromUrl();
-    if (tokenFromUrl) {
-      localStorage.setItem('spotify_token', tokenFromUrl);
-      window.history.replaceState({}, document.title, '/'); // limpa o token da URL
+    const tokens = getTokensFromUrl();
+    if (tokens.access_token) {
+      localStorage.setItem('spotify_token', tokens.access_token);
+      // Remove query string para limpar a URL
+      window.history.replaceState({}, document.title, '/');
     }
     const token = localStorage.getItem('spotify_token');
     if (token) {
