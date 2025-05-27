@@ -1,23 +1,21 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-  <meta charset="UTF-8">
-  <title>Spotify Callback</title>
+  <meta charset="UTF-8" />
+  <title>Processando Token...</title>
 </head>
-<body>
+<body style="background:#121212; color:white; text-align:center; padding-top:50px;">
+  <h1>Conectando com o Spotify...</h1>
   <script>
-    // Extrai o token da URL (ex: #access_token=...)
     const hash = window.location.hash.substring(1);
     const params = new URLSearchParams(hash);
     const token = params.get('access_token');
 
     if (token) {
-      // Salva no localStorage
       localStorage.setItem('spotify_token', token);
-      // Redireciona de volta para a home
-      window.location.href = '/';
+      window.location.href = '/'; // redireciona para index.html
     } else {
-      document.body.innerHTML = '<h1>Erro: Token não encontrado.</h1>';
+      document.body.innerHTML = "<h1>Erro ao autenticar com Spotify.</h1>";
     }
   </script>
 </body>
