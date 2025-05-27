@@ -1,7 +1,6 @@
-// /api/login.js
 export default function handler(req, res) {
   const client_id = process.env.SPOTIFY_CLIENT_ID;
-  const redirect_uri = 'https://testando-pp9x.vercel.app/api/callback';
+  const redirect_uri = 'https://testando-pp9x.vercel.app/callback.html'; // importante mudar aqui!
   const scopes = [
     'user-read-playback-state',
     'user-read-currently-playing',
